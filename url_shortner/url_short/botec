@@ -1,0 +1,77 @@
+100M Daily Active Users
+Read:write ratio = 100: 1
+Data retention for 5 years
+Assuming 1 million write requests per day
+Assuming each entry is about 500 bytes
+
+Storage needed:
+    5 years = 500 * 1e6 * 365 * 5 = 912 GB approximately
+
+Read requests = 1 million
+Write requests = 100 million
+Total requests = 101 million 
+
+Reads per sec = 1e6/(24*60*60) = 11.57 = 12 rps (approx)
+Writes per sec = 100 * read rps = 1158 rps (approx)
+Total = 1158 + 12 = 1170
+Assuming 3x peak traffic = 1170 * 3 = 3500 (approx)
+
+Assuming 1 server can handle 500 rps 
+Servers needed = Total request / server capacity to handle requests per sec = 3500 / 500 = 7 servers + 1 extra = 8 servers
+
+For 5 years the unique urls needed:
+    1e6 * 365 * 5 = 1825000000.0 = 1.8 billion unique url
+
+For easy to read urls we will base62 encoding:
+    62 chars , 1 lenght = 62 unique urls
+    62 chars , 2 lenght = 62**2 = 3844 unique urls
+    .
+    .
+    .
+    62 chars , 6 lenght = 62**6 = 56.8 billion >>> 1.8 billion
+
+How can we generate unique urls ? 
+
+Approach 1:
+    We can use snowflake id generator:
+        Snowflake id generator generates 64 bit ids
+        (41 timestamps + 10 machine id + 12 sequence) = 64 bits
+        With 10 bits reserved for machine ids we can have 2^10 = 1024 servers 
+        12 bits for sequence -> 2^12 = 4096 ids per millisecond
+
+    Why use snowflake id generator ?
+        We can easily encode the generated 64 bit int into base62 string
+    
+    What about collision ?
+        If we encode the whole base64 int id into base62 , there is no chance of collision
+        but we have to make fixed lenght url say 6 (as per our requirement)
+        so there are chances of collision
+        >>> base62.encode(18446744073709551610)[:6]
+        'LygHa1'
+        >>> base62.encode(18446744073709551611)[:6]
+        'LygHa1'
+
+        But we can't take the full base62 encode string as that will be 11 chars long 
+        
+Approach 2:
+    Hashing the url:
+    MD5 produces 128 bit hash and prone to collision
+    SHA-256 produces 265 bit less prone but too long for our use case 
+
+Approach 3: 
+    UUID4 less likely to collide but too long (36 chars)
+
+Approach 4: (This one best fits our use case so we will use this one)
+    Counter based:
+    Assign each server a range 
+        server 1 = 1B <> 1B + 10M 
+        server 2 = 1B + 10M + 1 <> 1B + 20M
+        ... and so on
+    
+    But why start from 1B not 0 , 1 or 1M ?
+        we want all the url to be of length 6 
+        the base62 encodes 0 into 1 len and so on 1B into 6 chars url 
+
+    Encode each generated id into base62
+    
+    as soon as server is about exhaust all the id range it will request a new range 

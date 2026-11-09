@@ -1,0 +1,21 @@
+We extract verbs from the problem statement to identify core operations:
+
+"takes a long URL and generates a shorter alias" → CREATE operation (URL Shortening)
+"redirects users to the original URL" → READ operation (URL Redirection)
+"track link usage" → UPDATE/INCREMENT operation (Analytics)
+Each verb maps to a functional requirement that defines what the system must do.
+
+Users should be able to input a long URL and receive a unique, shortened alias. The shortened URL should use a compact format with English letters and digits to save space and ensure uniqueness.
+
+When users access a shortened URL, the service should redirect them seamlessly to the original URL with minimal delay.
+
+The system should be able to track the number of times each shortened URL is accessed to provide insights into link usage.
+
+
+Scale Requirements
+
+100M Daily Active Users
+Read:write ratio = 100: 1
+Data retention for 5 years
+Assuming 1 million write requests per day
+Assuming each entry is about 500 bytes

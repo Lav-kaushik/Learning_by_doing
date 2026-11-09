@@ -1,0 +1,86 @@
+x-url-shortner: &url-shortner
+  build: ./url_short
+  environment:
+    DB_URL: "postgresql+psycopg://postgres:${POSTGRES_PASSWORD:-url_shortner_dev_password}@postgres:5432/shortendb"
+    RANGE_ALLOCATOR_URL: http://app4:8000/get/range
+    REDIS_URL: redis://redis:6379/0
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    app4:
+      condition: service_healthy
+
+services:
+  app1:
+    <<: *url-shortner
+    ports:
+      - "8001:8000"
+
+  app2:
+    <<: *url-shortner
+    ports:
+      - "8002:8000"
+
+  app3:
+    <<: *url-shortner
+    ports:
+      - "8003:8000"
+
+  app4:
+    build: ./range_allocator
+    ports:
+      - "8004:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ping', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  nginx:
+    image: nginx:alpine
+    container_name: url_shortner_load_balancer
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app1
+      - app2
+      - app3
+
+  redis:
+    image: redis:7-alpine
+    container_name: url_shortner_redis_cache
+    ports:
+      - "6381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  
+  postgres:
+    image: postgres:17-alpine
+    container_name: url_shortner_postgres_db
+    environment:
+      POSTGRES_DB: shortendb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-url_shortner_dev_password}"
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shortendb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:

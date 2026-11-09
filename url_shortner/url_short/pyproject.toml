@@ -1,0 +1,13 @@
+[project]
+name = "url-shor"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard]>=0.162.0",
+    "pybase62>=1.0.0",
+    "psycopg[binary]>=3.2.0",
+    "sqlalchemy>=2.1.8",
+    "fastapi-redis-sdk>=0.9.1",
+]
